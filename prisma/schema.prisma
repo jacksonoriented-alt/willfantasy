@@ -1,0 +1,458 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  CASH_AGENT
+  PAYOUT_OPERATOR
+  USER
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum DepositStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  ESCALATED
+  CANCELLED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+enum WalletEntryType {
+  DEPOSIT
+  WITHDRAWAL
+  CONTEST_ENTRY
+  CONTEST_REFUND
+  PRIZE_PAYOUT
+  ADJUSTMENT
+}
+
+enum MatchDataStatus {
+  READY
+  INCOMPLETE
+  PROVIDER_UNAVAILABLE
+}
+
+model User {
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  passwordHash        String
+  displayName         String
+  fantasyName         String
+  role                UserRole            @default(USER)
+  accountStatus       AccountStatus       @default(ACTIVE)
+  createdAt           DateTime            @default(now())
+  fantasyTeams        FantasyTeam[]
+  contestEntries      ContestEntry[]
+  sessions            Session[]
+  contestPayouts      ContestPayout[]
+  wallets             Wallet[]
+  depositRequests     DepositRequest[]    @relation("DepositOwner")
+  assignedDeposits    DepositRequest[]    @relation("DepositAgent")
+  withdrawalRequests  WithdrawalRequest[] @relation("WithdrawalOwner")
+  reviewedWithdrawals WithdrawalRequest[] @relation("WithdrawalReviewer")
+  auditEvents         AuditEvent[]
+  agentProfile        CashAgentProfile?
+  recordedExpenses    PlatformExpense[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model CricketTeam {
+  id           String             @id @default(cuid())
+  name         String
+  shortName    String             @unique
+  players      Player[]
+  matches      MatchParticipant[]
+  matchPlayers MatchPlayer[]
+}
+
+model Player {
+  id                String              @id @default(cuid())
+  name              String
+  shortName         String?
+  role              String
+  providerRole      String?
+  creditValue       Float
+  provider          String?
+  externalPlayerId  String?
+  imageUrl          String?
+  cricketTeamId     String
+  cricketTeam       CricketTeam         @relation(fields: [cricketTeamId], references: [id])
+  matchEntries      MatchPlayer[]
+  fantasySelections FantasyTeamPlayer[]
+
+  @@unique([provider, externalPlayerId])
+}
+
+model Match {
+  id                String             @id @default(cuid())
+  title             String
+  startsAt          DateTime
+  status            String             @default("UPCOMING")
+  provider          String?
+  externalFixtureId String?
+  competition       String?
+  format            String?
+  isEnabled         Boolean            @default(false)
+  isSuspended       Boolean            @default(false)
+  archivedAt        DateTime?
+  dataStatus        MatchDataStatus    @default(PROVIDER_UNAVAILABLE)
+  lastSyncedAt      DateTime?
+  syncError         String?
+  playersLastSyncedAt DateTime?
+  playersSyncError  String?
+  playingXIConfirmed Boolean            @default(false)
+  playingXILastSyncedAt DateTime?
+  playingXISyncError String?
+  teams             FantasyTeam[]
+  contests          Contest[]
+  participants      MatchParticipant[]
+  players           MatchPlayer[]
+
+  @@unique([provider, externalFixtureId])
+  @@index([isEnabled, startsAt])
+}
+
+model FantasyTeam {
+  id            String   @id @default(cuid())
+  name          String
+  teamNumber    Int
+  userId        String
+  matchId       String
+  captainId     String?
+  viceCaptainId String?
+  createdAt     DateTime @default(now())
+
+  user           User                @relation(fields: [userId], references: [id])
+  match          Match               @relation(fields: [matchId], references: [id])
+  selections     FantasyTeamPlayer[]
+  contestEntries ContestEntry[]
+
+  @@unique([userId, matchId, teamNumber])
+}
+
+model FantasyTeamPlayer {
+  fantasyTeamId String
+  playerId      String
+
+  fantasyTeam FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  player      Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([fantasyTeamId, playerId])
+}
+
+model Contest {
+  id                       String    @id @default(cuid())
+  name                     String
+  matchId                  String
+  type                     String    @default("TOP_10_PERCENT")
+  entryFee                 Int       @default(0)
+  prizePool                Int       @default(0)
+  capacity                 Int       @default(100)
+  status                   String    @default("OPEN")
+  sourceType               String    @default("MEGA")
+  templateId               String?
+  instanceNumber           Int?
+  entryFeePaise            BigInt    @default(0)
+  commissionBps            Int       @default(2000)
+  prizePercentages         Json?
+  prizeMode                String    @default("PERCENTAGE")
+  prizeTemplate            String?
+  fixedPrizeTiers          Json?
+  sponsorContributionPaise BigInt    @default(0)
+  prizePoolPaise           BigInt    @default(0)
+  targetPrizePoolPaise     BigInt    @default(0)
+  startsAt                 DateTime?
+  registrationDeadline     DateTime?
+  publishedAt              DateTime?
+  settledAt                DateTime?
+  createdAt                DateTime  @default(now())
+
+  match            Match                   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  entries          ContestEntry[]
+  template         ContestTemplate?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  financialEntries ContestFinancialEntry[]
+  payouts          ContestPayout[]
+
+  @@unique([templateId, matchId, instanceNumber])
+  @@index([matchId, status])
+}
+
+model ContestEntry {
+  id            String   @id @default(cuid())
+  contestId     String
+  userId        String
+  fantasyTeamId String
+  joinedAt      DateTime @default(now())
+
+  contest     Contest         @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fantasyTeam FantasyTeam     @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+  payouts     ContestPayout[]
+
+  @@unique([contestId, fantasyTeamId])
+  @@index([contestId, userId])
+  @@index([contestId, joinedAt])
+}
+
+model ContestTemplate {
+  id                      String   @id @default(cuid())
+  code                    String   @unique
+  name                    String
+  enabled                 Boolean  @default(false)
+  entryFeePaise           BigInt
+  capacity                Int
+  contestFormat           String
+  commissionBps           Int      @default(2000)
+  payoutPercentages       Json
+  minimumEntriesToOpen    Int      @default(2)
+  registrationLeadMinutes Int      @default(15)
+  openWindowMinutes       Int      @default(10080)
+  matchEligibility        Json
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  contests Contest[]
+}
+
+model ContestEngineSetting {
+  id                    Int      @id @default(1)
+  autoGenerationEnabled Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+}
+
+model ContestGenerationRun {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  scanned     Int       @default(0)
+  created     Int       @default(0)
+  status      String    @default("RUNNING")
+  error       String?
+
+  @@index([startedAt])
+}
+
+model ContestFinancialEntry {
+  id             String   @id @default(cuid())
+  contestId      String
+  type           String
+  amountPaise    BigInt
+  currency       String   @default("INR")
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Restrict)
+
+  @@index([contestId, createdAt])
+}
+
+model ContestPayout {
+  id          String   @id @default(cuid())
+  contestId   String
+  entryId     String
+  userId      String
+  amountPaise BigInt
+  createdAt   DateTime @default(now())
+
+  contest Contest      @relation(fields: [contestId], references: [id], onDelete: Restrict)
+  entry   ContestEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([contestId, entryId])
+  @@index([userId, createdAt])
+}
+
+model MatchParticipant {
+  matchId       String
+  cricketTeamId String
+  match         Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  cricketTeam   CricketTeam @relation(fields: [cricketTeamId], references: [id], onDelete: Restrict)
+
+  @@id([matchId, cricketTeamId])
+}
+
+model MatchPlayer {
+  matchId                String
+  playerId               String
+  cricketTeamId          String
+  role                   String
+  creditValue            Float
+  providerTeamName       String?
+  providerTeamShortName  String?
+  isInSquad              Boolean      @default(true)
+  isPlayingXI            Boolean      @default(false)
+  isCaptain              Boolean      @default(false)
+  isKeeper               Boolean      @default(false)
+  match                  Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player                 Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  cricketTeam            CricketTeam  @relation(fields: [cricketTeamId], references: [id], onDelete: Restrict)
+
+  @@id([matchId, playerId])
+  @@index([matchId, cricketTeamId, isInSquad])
+}
+
+model Wallet {
+  id            String              @id @default(cuid())
+  userId        String
+  currency      String              @default("INR")
+  depositedBalanceMinor BigInt @default(0)
+  winningsBalanceMinor  BigInt @default(0)
+  balanceMinor  BigInt              @default(0)
+  reservedMinor BigInt              @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  entries       WalletLedgerEntry[]
+
+  @@unique([userId, currency])
+  @@index([currency])
+}
+
+model WalletLedgerEntry {
+  id             String          @id @default(cuid())
+  walletId       String
+  type           WalletEntryType
+  amountMinor    BigInt
+  currency       String
+  idempotencyKey String          @unique
+  reference      String?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  wallet         Wallet          @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([walletId, createdAt])
+  @@index([type, createdAt])
+}
+
+model DepositRequest {
+  id                    String        @id @default(cuid())
+  userId                String
+  amountMinor           BigInt
+  currency              String        @default("INR")
+  paymentMethod         String
+  paymentReference      String
+  paidAt                DateTime?
+  receiptObjectKey      String?
+  idempotencyKey        String        @unique
+  providerTransactionId String?       @unique
+  status                DepositStatus @default(PENDING)
+  assignedAgentId       String?
+  decisionReason        String?
+  verifiedAt            DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  user                  User          @relation("DepositOwner", fields: [userId], references: [id], onDelete: Restrict)
+  assignedAgent         User?         @relation("DepositAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([assignedAgentId, status])
+  @@index([paymentReference])
+}
+
+model WithdrawalRequest {
+  id                       String           @id @default(cuid())
+  userId                   String
+  amountMinor              BigInt
+  currency                 String           @default("INR")
+  payoutMethod             String
+  providerDestinationToken String?
+  idempotencyKey           String           @unique
+  providerPayoutId         String?          @unique
+  status                   WithdrawalStatus @default(PENDING)
+  reviewedById             String?
+  decisionReason           String?
+  payoutReference          String?
+  paidAt                   DateTime?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  user                     User             @relation("WithdrawalOwner", fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy               User?            @relation("WithdrawalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model CashAgentProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  active                Boolean  @default(true)
+  transactionLimitMinor BigInt?
+  permissions           Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model PlatformExpense {
+  id             String   @id @default(cuid())
+  category       String
+  amountMinor    BigInt
+  currency       String   @default("INR")
+  reference      String?
+  idempotencyKey String   @unique
+  notes          String?
+  recordedById   String
+  createdAt      DateTime @default(now())
+  recordedBy     User     @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([currency, createdAt])
+  @@index([category, createdAt])
+}
+
+model AuditChainState {
+  id           Int    @id @default(1)
+  lastSequence Int    @default(0)
+  lastHash     String @default("")
+}
+
+model AuditEvent {
+  sequence     Int      @unique
+  id           String   @id @default(cuid())
+  actorUserId  String?
+  action       String
+  entityType   String
+  entityId     String?
+  details      Json
+  previousHash String
+  eventHash    String   @unique
+  createdAt    DateTime @default(now())
+  actor        User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+}

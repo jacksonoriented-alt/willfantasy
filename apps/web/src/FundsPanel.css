@@ -1,0 +1,21 @@
+.funds-panel-backdrop{position:fixed;inset:0;z-index:1001;display:grid;place-items:center;padding:18px;background:#050806eF}
+.funds-panel{width:min(680px,100%);max-height:90vh;overflow:auto;padding:24px;background:#101713;border:1px solid #37453a;border-radius:16px;box-shadow:0 25px 100px #000b}
+.funds-panel .saved-modal-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.funds-panel .saved-modal-head h2{margin:5px 0 10px}
+.funds-panel .saved-modal-head>button{background:none;border:0;color:#e9f0ea;font-size:19px}
+.funds-disabled-notice{padding:13px;background:#241d13;border:1px solid #66502e;border-radius:9px;color:#e2bd82;font-size:12px;line-height:1.7}
+.funds-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}
+.funds-balance-grid article{display:grid;gap:8px;padding:15px;background:#151c19;border:1px solid #2f3b32;border-radius:10px}
+.funds-balance-grid span,.funds-balance-grid small{color:#9ba79e;font-size:11px}
+.funds-balance-grid strong{font:700 23px 'Space Grotesk',sans-serif}
+.funds-actions{display:grid;grid-template-columns:1fr auto auto;align-items:end;gap:8px;margin:17px 0}
+.funds-actions label{display:grid;gap:6px;color:#aebbb0;font-size:11px}
+.funds-actions input{min-width:0;padding:10px;background:#0d130f;border:1px solid #344139;border-radius:8px;color:#9ba79e}
+.funds-actions button{padding:10px;border:1px solid #344139;border-radius:8px;background:#202923;color:#859187;font-size:11px}
+.funds-history{display:grid;gap:8px;margin-top:19px}
+.funds-history h3{margin:0;font-size:14px}
+.funds-history article{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;background:#151c19;border-radius:8px;font-size:11px}
+.funds-history article small{display:block;margin-top:4px;color:#87948b;font-size:10px}
+.funds-history article b{white-space:nowrap;color:#c7fa58}
+.funds-history>p,.funds-status-line{color:#87948b;font-size:11px}
+@media(max-width:540px){.funds-panel-backdrop{padding:0}.funds-panel{max-height:100vh;border-radius:0;border:0;padding:18px}.funds-actions{grid-template-columns:1fr 1fr}.funds-actions label{grid-column:1/-1}.funds-balance-grid{grid-template-columns:1fr}}

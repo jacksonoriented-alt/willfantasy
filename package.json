@@ -1,0 +1,39 @@
+{
+  "name": "willfantasy",
+  "version": "1.0.0",
+  "description": "fantasy",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "prisma skills sync || exit 0",
+    "dev:api": "NODE_ENV=development PORT=4000 tsx watch server/src/index.ts",
+    "dev:web": "cd apps/web && npm run dev -- --host 0.0.0.0 --port 5173"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacksonoriented-alt/willfantasy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jacksonoriented-alt/willfantasy/issues"
+  },
+  "homepage": "https://github.com/jacksonoriented-alt/willfantasy#readme",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}
